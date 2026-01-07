@@ -1291,7 +1291,7 @@ ${errorMessage}
 2. Tentar novamente
 3. Recarregar a página se o problema persistir
 
-Se o erro continuar, entre em contato diretamente pelo WhatsApp: (19) 99712-3864`);
+Se o erro continuar, entre em contato diretamente pelo WhatsApp: (43) 3176-1482`);
         
         // Não criar botão manual se não temos URL válida
         if (typeof whatsappURL !== 'undefined' && whatsappURL.length > 0) {
@@ -1418,6 +1418,5 @@ document.addEventListener('DOMContentLoaded', function() {
     setupValidation();
     setupConsentValidation();
 });
-
 
 
