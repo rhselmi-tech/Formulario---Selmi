@@ -815,7 +815,7 @@ async function handleFormSubmit(event) {
     let message;
     try { message = createFormattedMessage(formData); } catch (err) { alert('Erro ao preparar a mensagem: ' + (err.message || err)); return false; }
 
-    const phoneNumber = '5519971238643';
+    const phoneNumber = '554331761482';
     const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     try { showLoadingState(true); } catch (e) {}
     try { window.location.href = url; } catch (e) { try { window.open(url, '_blank'); } catch (e2) {} }
@@ -1161,7 +1161,7 @@ function sendToWhatsAppDirectly(formData) {
         }
         
         // Número do WhatsApp
-        const phoneNumber = '5519971238643';
+        const phoneNumber = '554331761482';
         
         // Criar URL do WhatsApp
         const encodedMessage = encodeURIComponent(whatsappMessage);
@@ -1418,5 +1418,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupValidation();
     setupConsentValidation();
 });
+
 
 
