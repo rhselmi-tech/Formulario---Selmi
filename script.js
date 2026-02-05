@@ -815,11 +815,64 @@ async function handleFormSubmit(event) {
     let message;
     try { message = createFormattedMessage(formData); } catch (err) { alert('Erro ao preparar a mensagem: ' + (err.message || err)); return false; }
 
-    const phoneNumber = '554331761482';
-    const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    const recipients = [
+        { name: 'Lucas', number: '554331761482' },
+        { name: 'Joseli', number: '5519971238643' }
+    ];
+
     try { showLoadingState(true); } catch (e) {}
-    try { window.location.href = url; } catch (e) { try { window.open(url, '_blank'); } catch (e2) {} }
+
+    const selected = await showWhatsAppRecipientChoice(recipients);
+    if (!selected || !selected.number) {
+        try { showLoadingState(false); } catch (e) {}
+        return false;
+    }
+
+    const url = `https://wa.me/${selected.number}?text=${encodeURIComponent(message)}`;
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) ||
+                     window.innerWidth <= 768;
+
+    if (isMobile) {
+        try { window.location.href = url; } catch (e) { try { window.open(url, '_self'); } catch (e2) {} }
+    } else {
+        try { window.open(url, '_blank'); } catch (e) { try { window.location.href = url; } catch (e2) {} }
+    }
+
+    try { showManualWhatsAppLinks([url]); } catch (e) {}
     return true;
+}
+
+// Fallback: mostrar links manuais para abrir WhatsApp em dois números
+function showManualWhatsAppLinks(urls) {
+    if (!urls || urls.length === 0) return;
+
+    const existing = document.querySelector('.whatsapp-manual-links');
+    if (existing) existing.remove();
+
+    const box = document.createElement('div');
+    box.className = 'whatsapp-manual-links';
+    box.style.cssText = 'background:#fff3cd;border:1px solid #ffeeba;padding:12px;border-radius:8px;margin:12px 0;color:#6b5200;';
+    box.innerHTML = '<strong>🔗 Envio para 2 números:</strong> se alguma aba não abrir, clique nos links abaixo:';
+
+    const list = document.createElement('div');
+    list.style.marginTop = '8px';
+
+    urls.forEach((u, i) => {
+        const a = document.createElement('a');
+        a.href = u;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.style.cssText = 'display:inline-block;margin-right:10px;margin-top:6px;color:#0b5ed7;font-weight:600;';
+        a.textContent = `Abrir WhatsApp (${i + 1})`;
+        list.appendChild(a);
+    });
+
+    box.appendChild(list);
+    const container = document.querySelector('.container');
+    const header = document.querySelector('.header');
+    if (container && header) container.insertBefore(box, header.nextSibling);
 }
 
 // Função para mostrar mensagem de sucesso
@@ -1369,6 +1422,55 @@ function showWhatsAppConfirm(url, message) {
 
     // scroll to modal
     modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Modal para escolher com quem falar antes de abrir o WhatsApp
+function showWhatsAppRecipientChoice(recipients) {
+    return new Promise(resolve => {
+        const existing = document.getElementById('whatsappRecipientModal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'whatsappRecipientModal';
+        modal.style.cssText = 'position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; z-index:10002; background: rgba(10, 46, 99, 0.45);';
+
+        const box = document.createElement('div');
+        box.style.cssText = 'background:#f2f7ff; padding:20px; max-width:520px; width:92%; border-radius:12px; box-shadow:0 8px 32px rgba(10, 46, 99, 0.25); text-align:left; border:1px solid #cfe0ff;';
+
+        const header = document.createElement('h3');
+        header.textContent = 'Selecione com quem você está falando';
+        header.style.marginTop = '0';
+
+        const buttonsWrap = document.createElement('div');
+        buttonsWrap.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;';
+
+        (recipients || []).forEach(rec => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = rec.name || 'Contato';
+            btn.style.cssText = 'background:#1f6feb;color:white;border:none;padding:10px 14px;border-radius:8px;font-weight:700;cursor:pointer;';
+            btn.onclick = () => {
+                modal.remove();
+                resolve(rec);
+            };
+            buttonsWrap.appendChild(btn);
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = 'Cancelar';
+        cancelBtn.style.cssText = 'background:#e6f0ff;color:#0b2f6b;border:1px solid #b6d0ff;padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer; margin-top:12px;';
+        cancelBtn.onclick = () => {
+            modal.remove();
+            resolve(null);
+        };
+
+        box.appendChild(header);
+        box.appendChild(buttonsWrap);
+        box.appendChild(cancelBtn);
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+    });
 }
 
 // Salvar progresso a cada mudança
