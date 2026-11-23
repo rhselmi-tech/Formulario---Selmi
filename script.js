@@ -121,6 +121,82 @@ function formatPIS(pis) {
     return pis;
 }
 
+// CEP 
+const CEP_AUTOPREENCHER = true; // false = só valida, não preenche rua/bairro/cidade
+
+function formatCEP(cep) {
+    cep = cep.replace(/\D/g, '').slice(0, 8);
+    return cep.replace(/(\d{5})(\d)/, '$1-$2');
+}
+
+let ultimoCepConsultado = '';
+async function validarCEPCampo() {
+    const field = document.getElementById('cep');
+    if (!field) return true;
+    field.setCustomValidity('');
+    const valor = field.value.trim();
+    if (!valor) return true; 
+
+    if (!/^\d{5}-\d{3}$/.test(valor)) {
+        field.setCustomValidity('CEP inválido. Use o formato 00000-000');
+        field.reportValidity();
+        return false;
+    
+    }
+
+    if (valor === ultimoCepConsultado && field.validity.valid) return true;
+    ultimoCepConsultado = valor;
+
+    try {
+        const res = await fetch(`https://viacep.com.br/ws/${valor.replace(/\D/g, '')}/json/`);
+        if (!res.ok) return true; // sem checagem online, não bloqueia
+        const json = await res.json();
+        if (json.erro) {
+            field.setCustomValidity('CEP não encontrado');
+            field.reportValidity();
+            return false;
+        }
+        if (CEP_AUTOPREENCHER) {
+            [['rua', json.logradouro], ['bairro', json.bairro], ['cidade', json.localidade]].forEach(([nome, val]) => {
+                const el = document.querySelector(`[name="${nome}"]`);
+                if (el && val && !el.value.trim()) {
+                    el.value = val;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        }
+        return true;
+    } catch (e) {
+        console.warn('Falha ao consultar CEP:', e);
+        return true; // erro de rede não bloqueia o envio
+    }
+}
+
+// ---- Data de emissão do RG ----
+function hojeISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function validarDataEmissaoRG() {
+    const emissao = document.getElementById('data_emissao_rg');
+    const nasc = document.getElementById('data_nascimento');
+    if (!emissao) return true;
+    emissao.setCustomValidity('');
+    if (!emissao.value) return true; // o "required" do HTML cuida do vazio
+
+    let msg = '';
+    if (emissao.value > hojeISO()) msg = 'A data de emissão do RG não pode ser futura';
+    else if (nasc && nasc.value && emissao.value < nasc.value) msg = 'A data de emissão do RG não pode ser anterior ao nascimento';
+
+    if (msg) {
+        emissao.setCustomValidity(msg);
+        emissao.reportValidity();
+        return false;
+    }
+    return true;
+}
+
 // Aplicar máscaras aos campos
 document.addEventListener('DOMContentLoaded', function() {
     const cpfField = document.getElementById('cpf');
@@ -151,6 +227,24 @@ document.addEventListener('DOMContentLoaded', function() {
             e.target.value = formatPIS(e.target.value);
         });
     }
+
+        const cepField = document.getElementById('cep');
+    if (cepField) {
+        cepField.addEventListener('input', function(e) {
+            e.target.value = formatCEP(e.target.value);
+            e.target.setCustomValidity('');
+            if (e.target.value.length === 9) validarCEPCampo();  
+        });
+        cepField.addEventListener('blur', validarCEPCampo);
+    }
+
+    const emissaoField = document.getElementById('data_emissao_rg');
+    const nascField = document.getElementById('data_nascimento');
+    if (emissaoField) {
+        emissaoField.max = hojeISO(); // bloqueia datas futuras no calendário
+        emissaoField.addEventListener('change', validarDataEmissaoRG);
+    }
+    if (nascField) nascField.addEventListener('change', validarDataEmissaoRG);
 });
 
 // Validação de CPF
@@ -307,6 +401,10 @@ function validateField(field) {
         isValid = validarCPF(value);
     }
     
+    if (field.id === 'cep' && value) {
+        isValid = /^\d{5}-\d{3}$/.test(value);
+    }
+
     if (field.type === 'email' && value) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         isValid = emailRegex.test(value);
@@ -329,7 +427,12 @@ function clearForm() {
     if (confirm('Tem certeza que deseja limpar todos os dados do formulário?')) {
         const form = document.getElementById('curriculumForm');
         form.reset();
-        
+
+        ['cep', 'data_emissao_rg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.setCustomValidity('');
+        });
+
         // Limpar classes de validação
         const fields = form.querySelectorAll('input, select, textarea');
         fields.forEach(field => {
@@ -438,7 +541,8 @@ function collectFormData() {
         'parente_empresa', 'nome_parente', 'possui_cnh', 'categoria_cnh',
         'veiculo_proprio', 'tipo_veiculo', 'outras_informacoes',
         // novos campos de endereço
-        'rua', 'numero_casa', 'bairro', 'cidade', 'possui_apartamento', 'numero_apartamento'
+        'rua', 'numero_casa', 'bairro', 'cidade', 'possui_apartamento', 'numero_apartamento',
+        'cep', 'data_emissao_rg'
     ];
     
     fieldsToCollect.forEach(fieldName => {
@@ -647,8 +751,10 @@ function createFormattedMessage(formData) {
     if (formData.rg) {
         let rgInfo = formData.rg;
         if (formData.cidade_rg) rgInfo += ` - ${formData.cidade_rg}`;
+        if (formData.data_emissao_rg) rgInfo += ` (emissão: ${formatDateBR(formData.data_emissao_rg)})`;
         message += `🪪 RG: ${rgInfo}\n`;
     }
+
     if (formData.data_nascimento) {
         const dataNascFmt = formatDateBR(formData.data_nascimento);
         message += `🎂 Data de Nascimento: ${dataNascFmt}\n`;
@@ -669,6 +775,7 @@ function createFormattedMessage(formData) {
         if (formData.numero_casa) enderecoParts.push('nº ' + formData.numero_casa);
         if (formData.bairro) enderecoParts.push(formData.bairro);
         if (formData.cidade) enderecoParts.push(formData.cidade);
+        if (formData.cep) enderecoParts.push('CEP ' + formData.cep);
         let enderecoFormatado = enderecoParts.join(' - ');
         if (formData.possui_apartamento === 'sim' && formData.numero_apartamento) {
             enderecoFormatado += `, Apt ${formData.numero_apartamento}`;
@@ -772,6 +879,7 @@ async function handleFormSubmit(event) {
 
     // Estratégia mais simples e confiável: temporariamente remover required de campos ocultos,
     // usar validação nativa (checkValidity), e então restaurar os atributos required.
+    if (!validarDataEmissaoRG()) return false;
     const requiredFields = Array.from(form.querySelectorAll('[required]'));
     const hiddenRequired = [];
     requiredFields.forEach(f => {
@@ -810,14 +918,22 @@ async function handleFormSubmit(event) {
         // continuar se a verificação falhar por erro técnico
     }
 
+    // Validar CEP (formato + existência)
+    try {
+        const cepOk = await validarCEPCampo();
+        if (!cepOk) return false;
+    } catch (e) {
+        console.warn('Erro durante verificação do CEP:', e);
+    }
+
     // Coletar dados e enviar
     const formData = collectFormData();
     let message;
     try { message = createFormattedMessage(formData); } catch (err) { alert('Erro ao preparar a mensagem: ' + (err.message || err)); return false; }
 
     const recipients = [
-        { name: 'Lucas', number: '554331761482' },
-        { name: 'Joseli', number: '5519971238643' }
+        { name: 'Kelle Maria', number: '554331761482' }, //!!!!!!!!!!!!!!!!!!!!
+        { name: 'Janaína Fix', number: '5519971238643' } //!!!!!!!!!!!!!!!!!!!!
     ];
 
     try { showLoadingState(true); } catch (e) {}
