@@ -183,7 +183,7 @@ function validarDataEmissaoRG() {
     const nasc = document.getElementById('data_nascimento');
     if (!emissao) return true;
     emissao.setCustomValidity('');
-    if (!emissao.value) return true; // o "required" do HTML cuida do vazio
+    if (!emissao.value) return true;
 
     let msg = '';
     if (emissao.value > hojeISO()) msg = 'A data de emissão do RG não pode ser futura';
@@ -932,8 +932,7 @@ async function handleFormSubmit(event) {
     try { message = createFormattedMessage(formData); } catch (err) { alert('Erro ao preparar a mensagem: ' + (err.message || err)); return false; }
 
     const recipients = [
-        { name: 'Kelle Maria', number: '554331761482' }, //!!!!!!!!!!!!!!!!!!!!
-        { name: 'Janaína Fix', number: '5519971238643' } //!!!!!!!!!!!!!!!!!!!!
+        { name: 'Janaína Fix', number: '554331761482' }
     ];
 
     try { showLoadingState(true); } catch (e) {}
