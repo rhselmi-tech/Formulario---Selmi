@@ -47,6 +47,8 @@ Este é um sistema completo de formulário HTML/CSS/JS para coleta de dados de c
 - Nome completo
 - Endereço completo
 - CPF
+- CEP
+- Data de emissão do RG
 - Número do RG
 - Cidade onde o RG foi emitido
 - Data de nascimento
@@ -123,5 +125,6 @@ Para usar em produção, considere:
 5. Painel administrativo para visualizar currículos
 
 ## 📞 Suporte
+
 
 Este sistema foi desenvolvido para ser simples de usar e manter. Para customizações adicionais, consulte os comentários no código-fonte.
